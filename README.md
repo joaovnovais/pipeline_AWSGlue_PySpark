@@ -1,106 +1,95 @@
-# Pipeline com AWS Glue e PySpark
+# AWS Glue & PySpark ETL Pipeline
 
-Este projeto demonstra um pipeline de ETL **serverless** utilizando o **AWS Glue com PySpark**, armazenando dados transformados no **Amazon S3**, particionando e criando tabelas de consulta com **Glue Catalog** e **Amazon Athena**.
+This project demonstrates a serverless ETL pipeline using AWS Glue and PySpark to process phishing email data.
+The transformed data is stored in Amazon S3 in Parquet format, partitioned by label, cataloged with AWS Glue Data Catalog, and queried through Amazon Athena.
 
----
 
-## Objetivo
+# Project Objective
 
-Processar dados de e-mails de phishing com um pipeline real usando serviços gerenciados da AWS, explorando boas práticas de transformação, particionamento e consultas SQL otimizadas.
+To build a real-world ETL pipeline that processes a phishing email dataset using AWS managed services, applying data cleaning, transformation, and partitioning best practices for efficient SQL analytics.
 
----
 
-## Tecnologias Utilizadas
+# Tech Stack
 
-- **AWS Glue** (Job + Crawler)
-- **PySpark**
-- **Amazon S3**
-- **Glue Data Catalog**
-- **Amazon Athena**
-- **IAM (AWSGlueServiceRole, AmazonS3FullAccess, AmazonAthenaFullAccess)**
+• AWS Glue (Job + Crawler) – ETL orchestration and schema discovery
 
----
+• PySpark – Data cleaning and transformation
 
-## Dataset
+• Amazon S3 – Data lake storage (raw & curated zones)
 
-- **Fonte**: [Kaggle – Email Phishing Dataset]  
-- **Formato Original**: CSV  
-- **Nome do arquivo no S3**: `email_phishing_data.csv`
+• AWS Glue Data Catalog – Metadata management
 
-O dataset contém aproximadamente 520.000 e-mails, com as colunas: num_words, num_links, num_stopwords, num_spelling_errors, label
+• Amazon Athena – SQL-based querying over S3 data
 
----
+• AWS IAM – Access and permissions management
 
-## Pipeline ETL
 
-### 1. Upload do dado bruto
+# Dataset
 
-O arquivo original `email_phishing_data.csv` foi carregado no seguinte bucket: s3://data-engineer-projects-jota/email_phishing_data.csv
+• Source: Kaggle – Email Phishing Dataset
 
----
+• Format: CSV
 
-### 2. Glue Job – ETL com PySpark
+• S3 Object: s3://data-engineer-projects-jota/email_phishing_data.csv
 
-O Glue Job executa as seguintes etapas:
+• Volume: ~520,000 records
 
-```python
-# Leitura do CSV com cabeçalho
+• Columns:
+
+num_words
+
+num_links
+
+num_stopwords
+
+num_spelling_errors
+
+label (0 = not phishing, 1 = phishing)
+
+
+# ETL Pipeline Overview
+
+### 1 - Data Ingestion
+
+• The raw dataset (email_phishing_data.csv) was uploaded to the following S3 path: s3://data-engineer-projects-jota/email_phishing_data.csv
+
+### 2 - Data Transformation with AWS Glue (PySpark)
+
 df = spark.read.option("header", True).csv("s3://data-engineer-projects-jota/email_phishing_data.csv")
 
-# Limpeza de dados
 df_clean = df.dropna()
 
-# Conversão da coluna 'label' para inteiro e renomeação para 'phishing_label'
 from pyspark.sql.functions import col
 df_clean = df_clean.withColumnRenamed("label", "phishing_label")
 df_clean = df_clean.withColumn("phishing_label", col("phishing_label").cast("int"))
 
-# Escrita em formato Parquet particionado
 df_clean.write.mode("overwrite").partitionBy("phishing_label").parquet("s3://data-engineer-projects-jota/projeto2/curated/")
 
----
-Glue Crawler
-Um crawler foi criado e configurado para:
+### 3 - Glue Crawler Configuration
 
-Apontar para: s3://data-engineer-projects-jota/projeto2/curated/
- Banco de dados: projeto3_jota
+• Data Source: s3://data-engineer-projects-jota/projeto2/curated/
 
-Nome da tabela gerada: projeto2
+• Database: projeto3_jota
 
----
+• Generated Table: projeto2
 
+### 4 - Athena Queries
 
-Consultas no Athena
-Após a execução do crawler, a tabela foi registrada no Glue Catalog e pode ser consultada via Athena:
-
--- Visualizar os dados
 SELECT * FROM projeto3_jota.projeto2 LIMIT 10;
 
--- Quantidade de e-mails phishing x não phishing
 SELECT phishing_label, COUNT(*) AS total
 FROM projeto3_jota.projeto2
 GROUP BY phishing_label;
 
----
 
-data-engineer-projects-jota/
-├── email_phishing_data.csv             # Dado bruto original
-└── projeto2/
-    └── curated/
-        └── phishing_label=0/
-        └── phishing_label=1/
-        ...
+# Key Learnings
 
----
+• Building a serverless ETL pipeline using AWS Glue and PySpark
 
-Principais Aprendizados
-Utilização do AWS Glue como mecanismo de ETL serverless com PySpark
+• Converting CSV files into partitioned Parquet datasets in S3
 
-Leitura de CSV e escrita particionada em Parquet no S3
+• Automating schema creation with AWS Glue Crawler
 
-Criação automatizada de catálogo com Glue Crawler
+• Performing optimized SQL queries via Amazon Athena
 
-Consultas otimizadas no Athena com particionamento
-
-Tratamento de tipos, limpeza e validação dos dados
-
+• Managing permissions through IAM roles and policies
